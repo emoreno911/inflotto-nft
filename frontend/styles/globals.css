@@ -1,0 +1,63 @@
+@import url("https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css");
+@import url('https://fonts.googleapis.com/css2?family=Bakbak+One&display=swap');
+@import url('/font/css/general-sans.css');
+
+body {
+  margin: 0;
+  font-family: 'GeneralSans-Regular', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+
+  width: 100%;
+  height:100vh;
+}
+
+code {
+  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
+    monospace;
+}
+
+.wrap {
+  max-width: 960px;
+  margin: 20px auto;
+  padding: 0 15px;
+}
+
+h1, h2, h3, h4, h5, h6 { line-height:1.3 !important; font-family: 'GeneralSans-Bold'; }
+
+.stretchToScreen { width:100%; height:100vh; }
+
+.font-semibold {
+  font-family: 'GeneralSans-Semibold';
+}
+
+.font-title {
+  font-family: 'Bakbak One', cursive;
+}
+
+.hero-section {
+  min-height: 75vh;
+}
+
+.hero-bg {
+  filter: hue-rotate(330deg);
+}
+
+.text-purple-700 {
+  color: #7E22CE;
+}
+.bg-purple-700 {
+  background-color: #7E22CE;
+}
+
+@media (prefers-color-scheme: dark) {
+  html {
+    color-scheme: dark;
+  }
+  body {
+    color: white;
+    background: black;
+  }
+}
