@@ -1,12 +1,15 @@
 import React, { createContext, useState, useEffect } from "react";
 import { useMoralis, useWeb3Contract } from "react-moralis";
 import { useNotification } from "web3uikit";
+const ethers = require("ethers");
+import axios from "axios";
 import {
-    contractAddress,
-    abi,
+    lotteryContractAddress as contractAddress,
+    abiLottery as abi,
+    nftContractAddress,
     contractChainId,
-    abiTruflationRinkeby,
-} from "./constants";
+} from "./constants/index";
+
 import { getInflationIndexPd } from "./utils";
 
 export const DataContext = createContext();
@@ -23,42 +26,90 @@ const DataContextProvider = (props) => {
     const [numberOfTickets, setNumberOfTickets] = useState("0");
     const [lotteryHistory, setLotteryHistory] = useState([]);
     const [players, setPlayers] = useState([]);
+    const [nftsTickets, setNftsTickets] = useState([]);
 
-    const [inflationToday, setInflationToday] = useState(11.967);
-    const [status, setStatus] = useState("");
+    const [inflationToday, setInflationToday] = useState(10.5);
+    const [listenerActive, setListenerActive] = useState(false);
 
-    const { Moralis, isWeb3Enabled, chainId: chainIdHex } = useMoralis();
+    const { account, isWeb3Enabled, chainId: chainIdHex } = useMoralis();
     // These get re-rendered every time due to our connect button!
     const chainId = parseInt(chainIdHex);
 
     useEffect(() => {
         // init
         getInflationToday();
+        //getAccountNfts();
+
+        if (!listenerActive) setupListener();
     }, []);
 
     useEffect(() => {
         if (isWeb3Enabled) {
             updateUIValues();
+            getAccountNfts();
         }
     }, [isWeb3Enabled]);
 
     async function getInflationToday() {
         //const today = new Date().toJSON().slice(0,10)
-        const inflation = await getInflationIndexPd();
-        //console.log(inflation);
-        setInflationToday(inflation.data.yearOverYearInflation);
+        //const inflation = await getInflationIndexPd();
+        //setInflationToday(inflation.data.yearOverYearInflation);
+    }
+
+    const getAccountNfts = async () => {
+        // Alchemy URL
+        const baseURL = "https://polygon-mumbai.g.alchemy.com/v2/jMrQKffloMYSWTbIDHrJqInel2aUb8Mg";
+        const url = `${baseURL}/getNFTs/?owner=${account}`;
+        const config = {
+            method: "get",
+            url: url,
+        };
+
+        const res = await axios(config);
+        const nfts = res.data.ownedNfts
+            .filter((o) => o.contract.address.toUpperCase() == nftContractAddress.toUpperCase())
+            .map((o) => ({ id: o.id.tokenId, ...o.metadata }));
+
+        setNftsTickets(nfts);
+    };
+
+    async function setupListener() {
+        setListenerActive(true);
+        const ws =
+            "wss://polygon-mumbai.g.alchemy.com/v2/jMrQKffloMYSWTbIDHrJqInel2aUb8Mg";
+        const provider = new ethers.providers.WebSocketProvider(ws);
+        const contract = new ethers.Contract(contractAddress, abi, provider);
+        contract.on("PlayerAdded", (from, index, tokenId, draw) => {
+            // generate nft...
+            generateTicketNFT(parseInt(tokenId), parseInt(index), parseInt(draw), from);
+            dispatch({
+                type: "info",
+                message: "Ticket Created!",
+                title: "Lottery Notification",
+                position: "topR",
+                icon: "bell",
+            });
+        });
+    }
+
+    async function generateTicketNFT(id, index, draw, owner) {
+        const data = {
+            id: id+32,
+            owner,
+            draw,
+            index: (index/1000).toFixed(3)
+        };
+        const response = await fetch("/api/mint", {
+            method: "post",
+            body: JSON.stringify(data),
+        });
+        
+        const rs = await response.json();
+        console.log(rs);
+        if (rs.success) getAccountNfts();
     }
 
     /* View Functions */
-
-    // const { runContractFunction: getInflationIndex } = useWeb3Contract({
-    // 	chainId: '0x04',
-    //     abi: abiTruflationRinkeby,
-    //     contractAddress: "0x5fc949612bCf622A63C4D66B1aA132728Cc0eb1C",
-    //     functionName: "getChainlinkToken",
-    //     params: {},
-    // })
-
     const { runContractFunction: getLotteryId } = useWeb3Contract({
         abi: abi,
         contractAddress,
@@ -117,16 +168,6 @@ const DataContextProvider = (props) => {
         setLotteryHistory(_lotteryHistory);
         setLotteryState(_lotteryState);
         setLotteryId(_lotteryId);
-
-        // Inflation index with Rinkerby contract
-        const options = {
-            chain: "rinkeby",
-            address: "0x5fc949612bCf622A63C4D66B1aA132728Cc0eb1C",
-            function_name: "yoyInflation",
-            abi: abiTruflationRinkeby,
-            params: {},
-        };
-        //const _inflationIndex = await Moralis.Web3API.native.runContractFunction(options);
     }
 
     const {
@@ -188,8 +229,8 @@ const DataContextProvider = (props) => {
 
     const data = {
         chainId,
-        status,
         players,
+        nftsTickets,
         inflationToday,
         currentPool,
         entranceFee,

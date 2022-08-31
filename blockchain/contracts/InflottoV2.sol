@@ -7,23 +7,24 @@ import "@chainlink/contracts/src/v0.8/interfaces/VRFCoordinatorV2Interface.sol";
 import "@chainlink/contracts/src/v0.8/VRFConsumerBaseV2.sol";
 import "@chainlink/contracts/src/v0.8/interfaces/KeeperCompatibleInterface.sol";
 import "@openzeppelin/contracts/interfaces/IERC721.sol";
-import "@openzeppelin/contracts/utils/Counters.sol";
 
-contract InflottoV3 is ChainlinkClient, VRFConsumerBaseV2, KeeperCompatibleInterface { 
+contract InflottoV2 is
+    ChainlinkClient,
+    VRFConsumerBaseV2,
+    KeeperCompatibleInterface
+{
     using Chainlink for Chainlink.Request;
-    using Counters for Counters.Counter;
-    
-    Counters.Counter private _tokenIds;
+
     IERC721 private _token721;
 
-    enum LotteryState { 
-        OPEN, 
-        CALCULATING_WINNER 
+    enum LotteryState {
+        OPEN,
+        CALCULATING_WINNER
     }
 
     struct Winner {
-        address payable addr; 
-        uint amount;  
+        address payable addr;
+        uint256 amount;
     }
 
     /* State variables */
@@ -46,24 +47,26 @@ contract InflottoV3 is ChainlinkClient, VRFConsumerBaseV2, KeeperCompatibleInter
     // Lottery Variables
     address private immutable i_nftContract;
     address private immutable i_owner;
-    uint256 private immutable i_interval;
+    //uint256 private immutable i_interval;
     uint256 private immutable i_entranceFee;
     uint256 private s_lastTimeStamp;
     uint256 private s_lotteryId;
-    
-    mapping (uint => Winner) private s_lotteryHistory;
-    mapping (uint256 => address payable) private s_ticketRequests;
+
+    mapping(uint256 => Winner) private s_lotteryHistory;
+    mapping(uint256 => address payable) private s_ticketRequests;
     address payable[] private s_players;
     uint256[] private s_tokens;
     uint256[] private s_tickets;
     LotteryState private s_lotteryState;
-    
+
     // Upper and Lower bounds for YTD inflation randmoness
-    uint256 private s_inflationUpper = 13500;
-    uint256 private s_inflationLower = 8000;
+    uint256 private s_inflationUpper = 13000;
+    uint256 private s_inflationLower = 7000;
+
+    uint256 private s_tokenIds;
 
     /* Events */
-    event PlayerAdded(address indexed player, uint256 ticket);
+    event PlayerAdded(address indexed player, uint256 ticket, uint256 tokenId, uint256 draw);
     event WinnerPicked(address indexed player, uint256 lotteryId);
 
     /* Functions */
@@ -73,7 +76,6 @@ contract InflottoV3 is ChainlinkClient, VRFConsumerBaseV2, KeeperCompatibleInter
         address vrfCoordinatorV2,
         uint64 subscriptionId,
         bytes32 gasLane, // keyHash
-        uint256 interval,
         uint256 entranceFee,
         uint32 callbackGasLimit,
         address nftContract,
@@ -82,7 +84,6 @@ contract InflottoV3 is ChainlinkClient, VRFConsumerBaseV2, KeeperCompatibleInter
         i_oracleId = oracleId;
         i_vrfCoordinator = VRFCoordinatorV2Interface(vrfCoordinatorV2);
         i_gasLane = gasLane;
-        i_interval = interval;
         i_subscriptionId = subscriptionId;
         i_entranceFee = entranceFee;
         s_lastTimeStamp = block.timestamp;
@@ -92,11 +93,14 @@ contract InflottoV3 is ChainlinkClient, VRFConsumerBaseV2, KeeperCompatibleInter
         s_jobId = jobId;
         i_owner = msg.sender;
         setChainlinkToken(chainlinkContract);
+
+        s_tokenIds = 0;
+        s_lotteryId = 1;
     }
 
     modifier onlyowner() {
-      require(msg.sender == i_owner);
-      _;
+        require(msg.sender == i_owner);
+        _;
     }
 
     function enter() public payable {
@@ -114,19 +118,25 @@ contract InflottoV3 is ChainlinkClient, VRFConsumerBaseV2, KeeperCompatibleInter
     function enterCallback(uint256 requestId, uint256 randomNumber) private {
         s_players.push(payable(s_ticketRequests[requestId]));
         s_tickets.push(randomNumber);
-        s_tokens.push(_tokenIds.current());
-        _tokenIds.increment();
-        emit PlayerAdded(s_ticketRequests[requestId], randomNumber);
+        s_tokenIds += 1;
+        s_tokens.push(s_tokenIds);
+        emit PlayerAdded(s_ticketRequests[requestId], randomNumber, s_tokenIds, s_lotteryId);
     }
 
     // this is called once fulfillInflationWei is completed
     function pickWinner() private {
-        require(s_lotteryState == LotteryState.CALCULATING_WINNER, "You aren't at that stage yet!");
-        uint inflationToday = s_recentYoyInflation/1000000000000000; // wei/e'15 = 00000
-        int closestTicket = 100000; // a random high number just to start the comparation
-        uint winnerIndex;
+        require(
+            s_lotteryState == LotteryState.CALCULATING_WINNER,
+            "You aren't at that stage yet!"
+        );
+        uint256 inflationToday = s_recentYoyInflation / 1000000000000000; // wei/e'15 = 00000
+        int256 closestTicket = 100000; // a random high number just to start the comparation
+        uint256 winnerIndex;
         for (uint256 index = 0; index < s_tickets.length; index++) {
-            int test = substractAndReturnAbs(int(s_tickets[index]), int(inflationToday));
+            int256 test = substractAndReturnAbs(
+                int256(s_tickets[index]),
+                int256(inflationToday)
+            );
             if (test < closestTicket) {
                 closestTicket = test;
                 winnerIndex = index;
@@ -136,13 +146,17 @@ contract InflottoV3 is ChainlinkClient, VRFConsumerBaseV2, KeeperCompatibleInter
         payWinner(winnerIndex);
     }
 
-    function payWinner(uint winnerIndex) private {
-        require(s_lotteryState == LotteryState.CALCULATING_WINNER, "You aren't at that stage yet!");
+    function payWinner(uint256 winnerIndex) private {
+        require(
+            s_lotteryState == LotteryState.CALCULATING_WINNER,
+            "You aren't at that stage yet!"
+        );
 
-        address payable recentWinner = s_players[winnerIndex];
-        // _token721 = IERC721(i_nftContract);
-        // address recentWinner = _token721.ownerOf(s_tokens[winnerIndex]);
-        // recentWinner.transfer(balance);
+        //address payable recentWinner = s_players[winnerIndex];
+        _token721 = IERC721(i_nftContract);
+        address _recentWinner = _token721.ownerOf(s_tokens[winnerIndex]);
+        address payable recentWinner = payable(_recentWinner);
+        //recentWinner.transfer(balance);
         s_lotteryHistory[s_lotteryId].addr = recentWinner;
         s_lotteryHistory[s_lotteryId].amount = address(this).balance;
         s_lotteryId++;
@@ -151,7 +165,7 @@ contract InflottoV3 is ChainlinkClient, VRFConsumerBaseV2, KeeperCompatibleInter
         //s_players[winnerIndex].transfer(address(this).balance);
         (bool success, ) = recentWinner.call{value: address(this).balance}("");
         require(success, "Transfer failed");
-        
+
         // reset the state of the contract
         s_players = new address payable[](0);
         s_tickets = new uint256[](0);
@@ -161,16 +175,22 @@ contract InflottoV3 is ChainlinkClient, VRFConsumerBaseV2, KeeperCompatibleInter
         emit WinnerPicked(recentWinner, s_lotteryId - 1);
     }
 
-    function substractAndReturnAbs(int val1, int val2) private pure returns(int) {
-        int result = val1 - val2;
-        return result >= 0 ? result : -1*result;
-    } 
+    function substractAndReturnAbs(int256 val1, int256 val2)
+        private
+        pure
+        returns (int256)
+    {
+        int256 result = val1 - val2;
+        return result >= 0 ? result : -1 * result;
+    }
 
-    function adjustInflationBounds(uint256 upper, uint256 lower) public onlyowner {
+    function adjustInflationBounds(uint256 upper, uint256 lower)
+        public
+        onlyowner
+    {
         s_inflationUpper = upper;
         s_inflationLower = lower;
     }
-
 
     // Keepers Interface
     function checkUpkeep(
@@ -215,12 +235,13 @@ contract InflottoV3 is ChainlinkClient, VRFConsumerBaseV2, KeeperCompatibleInter
         );
     }
 
-    function fulfillRandomWords(
-        uint256 requestId,
-        uint256[] memory randomWords
-    ) internal override {
+    function fulfillRandomWords(uint256 requestId, uint256[] memory randomWords)
+        internal
+        override
+    {
         // randomness % (max - min + 1) + min
-        uint256 randomNumber = randomWords[0] % (s_inflationUpper - s_inflationLower + 1) + s_inflationLower;
+        uint256 randomNumber = (randomWords[0] %
+            (s_inflationUpper - s_inflationLower + 1)) + s_inflationLower;
         enterCallback(requestId, randomNumber);
     }
 
@@ -240,30 +261,34 @@ contract InflottoV3 is ChainlinkClient, VRFConsumerBaseV2, KeeperCompatibleInter
         return sendChainlinkRequestTo(i_oracleId, req, FEE_TRUFLATION);
     }
 
-    function fulfillInflationWei(
-        bytes32 _requestId,
-        bytes memory _inflation
-    ) public recordChainlinkFulfillment(_requestId) {
+    function fulfillInflationWei(bytes32 _requestId, bytes memory _inflation)
+        public
+        recordChainlinkFulfillment(_requestId)
+    {
         s_recentYoyInflation = toUint256(_inflation);
         pickWinner();
     }
 
-    function toUint256(bytes memory _bytes) internal pure returns (uint256 value) {
+    function toUint256(bytes memory _bytes)
+        internal
+        pure
+        returns (uint256 value)
+    {
         assembly {
-        value := mload(add(_bytes, 0x20))
+            value := mload(add(_bytes, 0x20))
         }
     }
 
     /** Getter Functions */
-    function getBalance() public view returns (uint) {
+    function getBalance() public view returns (uint256) {
         return address(this).balance;
     }
 
-    function getMinimumEntry() public view returns (uint) {
+    function getMinimumEntry() public view returns (uint256) {
         return i_entranceFee;
     }
 
-    function getLotteryId() public view returns (uint) {
+    function getLotteryId() public view returns (uint256) {
         return s_lotteryId;
     }
 
@@ -271,24 +296,38 @@ contract InflottoV3 is ChainlinkClient, VRFConsumerBaseV2, KeeperCompatibleInter
         return s_lotteryState;
     }
 
-    function getPlayers() public view returns (address payable[] memory, uint[] memory) {
+    function getPlayers()
+        public
+        view
+        returns (address payable[] memory, uint256[] memory)
+    {
         return (s_players, s_tickets);
     }
 
-    function getWinnerByLottery(uint lottery) public view returns (address, uint) {
-        return (s_lotteryHistory[lottery].addr, s_lotteryHistory[lottery].amount);
+    function getWinnerByLottery(uint256 lottery)
+        public
+        view
+        returns (address, uint256)
+    {
+        return (
+            s_lotteryHistory[lottery].addr,
+            s_lotteryHistory[lottery].amount
+        );
     }
 
-    function getLotteryHistory() public view returns (address[] memory, uint[] memory) {
+    function getLotteryHistory()
+        public
+        view
+        returns (address[] memory, uint256[] memory)
+    {
         address[] memory mAddr = new address[](s_lotteryId);
-        uint[] memory mAmount = new uint[](s_lotteryId);
+        uint256[] memory mAmount = new uint256[](s_lotteryId);
 
-        for (uint i = 0; i < s_lotteryId; i++) {
-            mAddr[i] = s_lotteryHistory[i+1].addr;
-            mAmount[i] = s_lotteryHistory[i+1].amount;
+        for (uint256 i = 0; i < s_lotteryId; i++) {
+            mAddr[i] = s_lotteryHistory[i + 1].addr;
+            mAmount[i] = s_lotteryHistory[i + 1].amount;
         }
 
         return (mAddr, mAmount);
     }
-
 }

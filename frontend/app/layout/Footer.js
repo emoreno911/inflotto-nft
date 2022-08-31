@@ -21,12 +21,12 @@ const Footer = () => {
                     dApp made by{" "}
                     <a
                         className="text-purple-700"
-                        href="https://github.com/emoreno911"
+                        href="https://twitter.com/emoreno911"
                         target="_blank"
                     >
                         @emonreno911
                     </a>{" "}
-                    for Chainlink Spring 2022 Hackathon
+                    with Chainlink technology
                 </small>
             </div>
         </section>

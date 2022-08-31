@@ -30,7 +30,7 @@ const CountersSection = () => {
                         </svg>
                         <div className="flex flex-col flex-grow text-center md:text-left">
                             <h3 className="px-3 font-bold whitespace-pre-line bg-transparent text-purple-700 text-3xl leading-normal">
-                                WEEK #{lotteryId}
+                                DRAW #{lotteryId}
                             </h3>
                             <div className="p-3 md:py-0">
                                 <p className="whitespace-pre-line font-sans text-black text-xl font-semibold leading-normal">

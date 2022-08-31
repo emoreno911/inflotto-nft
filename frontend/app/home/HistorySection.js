@@ -2,7 +2,7 @@ import { useContext } from "react";
 import { useMoralis } from "react-moralis";
 import { DataContext } from "../context";
 import { weiToMatic } from "../utils";
-import { contractAddress, contractChainId } from "../constants";
+import { lotteryContractAddress, contractChainId } from "../constants/index";
 
 const HistorySection = () => {
     const { account } = useMoralis();
@@ -19,57 +19,54 @@ const HistorySection = () => {
 
     const WinnersHistory = () => {
         if (lotteryHistory.length < 1)
-            return <div className="text-xl text-gray-400">No Items Here!</div>;
+            return (
+                <div className="text-lg text-gray-400 mb-5">
+                    History is about to start!
+                </div>
+            );
 
         return (
             <div className="my-8 leading-relaxed whitespace-pre-line text-black text-xl">
-                {lotteryHistory[0].map((item, i) => (
-                    <div key={i}>
-                        <p className="font-semibold">
-                            <span>Week {i + 1}</span>
-                            <small className="text-gray-500 ml-2">
-                                ({weiToMatic(lotteryHistory[1][i].toNumber())}{" "}
-                                MATIC)
-                            </small>
-                        </p>
-                        <p className="truncate mb-3">{item}</p>
-                    </div>
-                ))}
+                <div className="table w-full">
+                    {lotteryHistory[0].map((item, i) => (
+                        <div
+                            className="flex justify-between w-full shadow-md mb-5 py-5 px-5 bg-white rounded-md"
+                            key={i}
+                        >
+                            <div className="hidden lg:block font-semibold">
+                                <span>DRAW {i + 1}</span>
+                            </div>
+                            <div className="block lg:text-right xl:text-center">
+                                <span className="font-semibold lg:hidden">
+                                    DRAW {i + 1}
+                                </span>
+                                <div className="truncate">{item}</div>
+                                <small className="xl:hidden text-gray-500">
+                                    {weiToMatic(
+                                        lotteryHistory[1][i].toNumber()
+                                    )}{" "}
+                                    MATIC
+                                </small>
+                            </div>
+                            <div className="hidden xl:block text-right">
+                                <small className="text-gray-500 ml-2">
+                                    {weiToMatic(
+                                        lotteryHistory[1][i].toNumber()
+                                    )}{" "}
+                                    MATIC
+                                </small>
+                            </div>
+                        </div>
+                    ))}
+                </div>
             </div>
-        );
-    };
-
-    const MyTickets = () => {
-        if (players.length < 1) return <div></div>;
-
-        const [_players, tickets] = players;
-        let myTickets = [];
-        tickets.forEach((t, i) => {
-            if (_players[i].toLowerCase() == account.toLowerCase())
-                myTickets.push(t);
-        });
-
-        if (myTickets.length < 1)
-            return <div className="text-xl text-gray-400">No Items Here!</div>;
-
-        return (
-            <ul>
-                {myTickets.map((ticket, i) => (
-                    <div
-                        key={i}
-                        className="text-white text-center bg-gray-800 py-3 my-3 rounded-md"
-                    >
-                        {ticket.toNumber() / 1000}
-                    </div>
-                ))}
-            </ul>
         );
     };
 
     return (
         <section className="w-full md:py-8 bg-gray-100">
             <div className="container mx-auto flex px-8 md:px-16 md:flex-row flex-col-reverse">
-                <div className="w-full md:w-8/12 lg:w-6/12 xl:w-6/12 px-3 md:text-left mb-16 md:mb-0 items-center text-center">
+                <div className="container px-5 py-2 mx-auto lg:px-32 md:text-left mb-16 md:mb-0 items-center text-center">
                     <div className="w-full flex flex-col md:flex-row"></div>
                     <div className="w-full mb-4 py-2">
                         <h3 className="whitespace-pre-line text-5xl text-purple-700 leading-normal tracking-normal font-bold">
@@ -81,7 +78,7 @@ const HistorySection = () => {
                         <a
                             className="mx-1 font-bold px-6 py-4 rounded-xl outline-none focus:outline-none mr-1 mb-1 uppercase text-sm whitespace-pre-line text-white bg-purple-700 shadow-md"
                             target="_blank"
-                            href={`https://mumbai.polygonscan.com/address/${contractAddress}`}
+                            href={`https://mumbai.polygonscan.com/address/${lotteryContractAddress}`}
                         >
                             <svg
                                 xmlns="http://www.w3.org/2000/svg"
@@ -101,14 +98,6 @@ const HistorySection = () => {
                                 Check in Explorer
                             </span>
                         </a>
-                    </div>
-                </div>
-                <div className="w-full md:w-8/12 lg:w-6/12 xl:w-6/12 w-5/6 text-center md:text-left px-4 md:px-8">
-                    <div className="w-full">
-                        <h3 className="whitespace-pre-line text-5xl text-purple-700 leading-normal tracking-normal font-bold mb-4 py-2">
-                            Your Tickets
-                        </h3>
-                        <MyTickets />
                     </div>
                 </div>
             </div>
