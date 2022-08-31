@@ -50,7 +50,7 @@ const main = async () => {
 };
 
 const verifyme = async () => {
-    const contract = { address: "0x70B41Ab45701784d2bf38F42CA298085441D08A9" };
+    const contract = { address: "0x5F4F562C7698f476972079b2e1F05aeA3b1bbf4e" };
     console.log("Contract deployed to:", contract.address);
 
     // Verify the deployment

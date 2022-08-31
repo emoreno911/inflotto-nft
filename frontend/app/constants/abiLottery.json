@@ -150,6 +150,12 @@
         "internalType": "uint256",
         "name": "lotteryId",
         "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "tokenId",
+        "type": "uint256"
       }
     ],
     "name": "WinnerPicked",
@@ -376,6 +382,19 @@
       }
     ],
     "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint8",
+        "name": "state",
+        "type": "uint8"
+      }
+    ],
+    "name": "setLotteryState",
+    "outputs": [],
+    "stateMutability": "nonpayable",
     "type": "function"
   }
 ]

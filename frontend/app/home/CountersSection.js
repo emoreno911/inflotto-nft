@@ -1,7 +1,7 @@
 import { useContext } from "react";
 import { DataContext } from "../context";
 import { weiToMatic } from "../utils";
-import { lotteryStateEnum } from "../constants";
+import { lotteryStateEnum } from "../constants/index";
 
 const CountersSection = () => {
     const {

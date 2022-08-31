@@ -28,7 +28,7 @@ const DataContextProvider = (props) => {
     const [players, setPlayers] = useState([]);
     const [nftsTickets, setNftsTickets] = useState([]);
 
-    const [inflationToday, setInflationToday] = useState(10.5);
+    const [inflationToday, setInflationToday] = useState(8.93);
     const [listenerActive, setListenerActive] = useState(false);
 
     const { account, isWeb3Enabled, chainId: chainIdHex } = useMoralis();
@@ -94,7 +94,7 @@ const DataContextProvider = (props) => {
 
     async function generateTicketNFT(id, index, draw, owner) {
         const data = {
-            id: id+32,
+            id: id,
             owner,
             draw,
             index: (index/1000).toFixed(3)

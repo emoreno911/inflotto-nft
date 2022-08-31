@@ -67,7 +67,7 @@ contract InflottoV2 is
 
     /* Events */
     event PlayerAdded(address indexed player, uint256 ticket, uint256 tokenId, uint256 draw);
-    event WinnerPicked(address indexed player, uint256 lotteryId);
+    event WinnerPicked(address indexed player, uint256 lotteryId, uint256 tokenId);
 
     /* Functions */
     constructor(
@@ -154,7 +154,8 @@ contract InflottoV2 is
 
         //address payable recentWinner = s_players[winnerIndex];
         _token721 = IERC721(i_nftContract);
-        address _recentWinner = _token721.ownerOf(s_tokens[winnerIndex]);
+        uint256 winnerTokenId = s_tokens[winnerIndex];
+        address _recentWinner = _token721.ownerOf(winnerTokenId);
         address payable recentWinner = payable(_recentWinner);
         //recentWinner.transfer(balance);
         s_lotteryHistory[s_lotteryId].addr = recentWinner;
@@ -172,7 +173,7 @@ contract InflottoV2 is
         s_tokens = new uint256[](0);
         s_lotteryState = LotteryState.OPEN;
 
-        emit WinnerPicked(recentWinner, s_lotteryId - 1);
+        emit WinnerPicked(recentWinner, s_lotteryId - 1, winnerTokenId);
     }
 
     function substractAndReturnAbs(int256 val1, int256 val2)
@@ -277,6 +278,12 @@ contract InflottoV2 is
         assembly {
             value := mload(add(_bytes, 0x20))
         }
+    }
+
+    function setLotteryState(uint8 state) 
+        public onlyowner 
+    {
+        s_lotteryState = state == 0 ? LotteryState.OPEN : LotteryState.CALCULATING_WINNER;
     }
 
     /** Getter Functions */

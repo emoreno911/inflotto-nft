@@ -16,8 +16,8 @@ contract InflottoTickets is ERC721URIStorage {
 
     address private immutable i_owner;
     uint256 public tokenCounter;
-    string private constant COLLECTION_NAME = "Inflotto Tickets B";
-    string private constant COLLECTION_ID = "IFLTKB";
+    string private constant COLLECTION_NAME = "Inflotto Tickets V2";
+    string private constant COLLECTION_ID = "IFLTKC";
     mapping(uint256 => Ticket) public tokenIdToTraits;
 
     string[] private palette = [
